@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.UserInfoMapper">
+	
+	<select id="pNextUsers" resultType="vo.common.ChildAndParentVO">
+        SELECT
+		  member_agent_id 'childId',
+		  member_user_id 'parentId' 
+		FROM
+		  agent_member_info 
+		WHERE
+		  agent_id = #{userId}
+    </select>
+ 
+    <select id="pNextAgents" statementType="CALLABLE" resultType="vo.common.ChildAndParentVO">
+        {
+            call p_next_supper_agents(#{agentId,mode=IN,jdbcType=INTEGER})
+        }
+    </select>
+	
+	<select id="managerAgentList" resultType="vo.manager.AgentListVO">
+		SELECT 
+		    u.id,
+		    nickname,
+		    account_type,
+		    l.level_val,
+		    l.level_name,
+		    agent_id,
+		    (SELECT 
+		            nickname
+		        FROM
+		            user_info i
+		        WHERE
+		            i.id = u.agent_id) AS agentName,
+		    general_agent_id,
+		    (SELECT 
+		            nickname
+		        FROM
+		            user_info i
+		        WHERE
+		            i.id = u.general_agent_id) AS generalAgentName,
+			(select count(1) from user_info i where i.reg_invitation_code=u.promotion_code) as inviteesCount,
+		    (select count(1) from agent_member_info am where am.agent_id=u.id) as memberCount,
+		    promotion_code,
+		    promotion_enable,
+		    reg_invitation_code,
+		    (select count(1) from user_info ui inner join level_def li on ui.level_id=li.id where ui.id in (select member_user_id from agent_member_info where agent_id=u.id) and li.level_val &lt; l.level_val) as rebateCount
+		    
+		FROM
+		    user_info u
+		        INNER JOIN
+		    level_def l ON u.level_id = l.id
+		    
+		<trim prefix="where" suffixOverrides="and">
+            <if test="param.userId != null and param.userId > 0">
+                u.id=#{param.userId} and
+            </if>
+            <if test="param.accountType != null">
+                u.account_type=#{param.accountType} and
+            </if>
+            <if test="param.levelId != null">
+                u.level_id=#{param.levelId} and
+            </if>
+            <if test="param.agentId != null">
+                u.agent_id=#{param.agentId} and
+            </if>
+            <if test="param.generalAgentId != null">
+                u.general_agent_id=#{param.generalAgentId} and
+            </if>
+            <if test="param.promotionEnable != null">
+            	<choose>
+	                <when test="param.promotionEnable == true">
+	                    u.promotion_enable = 1
+	                </when>
+	                <otherwise>
+	                	u.promotion_enable = 0
+	                </otherwise>
+	            </choose>
+            </if>
+        </trim>
+        order by id 
+	</select>
+	
+
+	<select id="managerUserList" resultType="entity.UserInfo">
+		SELECT 
+		    u.id,
+		    u.nickname,
+		    u.account_type,
+		    u.level_id,
+		    u.agent_id,
+		    u.general_agent_id,
+		    (SELECT 
+		            nickname
+		        FROM
+		            user_info i
+		        WHERE
+		            i.id = u.general_agent_id) AS generalAgentName,
+		    (select nickname from user_info where id=u.agent_id) as agentName,
+		    u.general_agent_id,
+		    u.real_auth_status,
+		    u.real_name,
+		    u.promotion_code,
+		    u.available_amt,
+		    u.follow_amt,
+			u.follow_enable,
+		    u.login_enable,
+		    u.reg_time,
+		    u.last_login_time,
+		    u.reg_invitation_code,
+		    u.trading_frozen_amt,
+			u.detention_amt,
+			u.funding_status,
+			l.level_val,
+		    l.level_name,
+			(SELECT 
+	            IFNULL(SUM(amount_received), 0)
+	        FROM
+	            user_stock_closing_position
+	        WHERE
+	            stock_type IN ('sh' , 'sz', 'bj', 'us')
+	            	and user_id=u.id
+	                AND transaction_status = 1
+	                AND transaction_time > DATE_SUB(SYSDATE(), INTERVAL 1 DAY)) + (SELECT 
+	            IFNULL(SUM(amount_received), 0)
+	        FROM
+	            user_stock_closing_position
+	        WHERE
+	            stock_type = 'hk'
+	            	and user_id=u.id
+	                AND transaction_status = 1
+	                AND transaction_time > DATE_SUB(SYSDATE(), INTERVAL 2 DAY)) as unavailableWithdrawalAmt 
+			FROM
+		    	user_info u 
+		    		INNER JOIN
+		   	    level_def l ON u.level_id = l.id
+		<trim prefix="where" suffixOverrides="and">
+			<if test="param.id != null and param.id > 0">
+				u.id=#{param.id} and
+			</if>
+			<if test="param.accountType != null">
+				u.account_type=#{param.accountType} and
+			</if>
+			<if test="param.agentId != null and param.agentId > 0">
+				<choose>
+					<when test="param.searchChildOfAgent == true">
+						u.id in <include refid="foreach"></include> and
+					</when>
+					<otherwise>
+						u.agent_id=#{param.agentId} and
+					</otherwise>
+				</choose>
+			</if>
+			<if test="param.realName != null and param.realName != ''">
+				u.real_name like '%${param.realName}%' and
+			</if>
+			<if test="param.invitationCode != null and param.invitationCode != ''">
+				u.reg_invitation_code like '%${param.invitationCode}%' and
+			</if>
+			<if test="param.phone != null and param.phone != ''">
+				concat(u.area_code,u.phone) like '%${param.phone}%' and
+			</if>
+			<if test="param.email != null and param.email != ''">
+				u.email like '%${param.email}%' and
+			</if>
+			<if test="param.loginEnable != null">
+				u.login_enable=#{param.loginEnable} and
+			</if>
+			<!-- <if test="param.tradeEnable != null">
+				u.trade_enable=#{param.tradeEnable} and
+			</if> -->
+			<if test="param.realAuthStatus != null">
+				u.real_auth_status=#{param.realAuthStatus} and
+			</if>
+			<if test="param.fundingStatus != null">
+				u.funding_status=#{param.fundingStatus} and
+			</if>
+			<if test="param.regTimeStart != null">
+				u.reg_time >= #{param.regTimeStart} and
+			</if>
+			<if test="param.regTimeEnd != null">
+				u.reg_time &lt;= #{param.regTimeEnd} and
+			</if>
+			<if test="param.lastLoginTimeStart != null">
+				u.last_login_time >= #{param.lastLoginTimeStart} and
+			</if>
+			<if test="param.lastLoginTimeEnd != null">
+				u.last_login_time &lt;= #{param.lastLoginTimeEnd} and
+			</if>
+		</trim>
+		order by 
+		<choose>
+			<when test="param.orderBy == 1">
+				u.reg_time
+			</when>
+			<when test="param.orderBy == 2">
+				u.available_amt
+			</when>
+			<otherwise>
+				u.last_login_time
+			</otherwise>
+		</choose>
+		<if test="param.descOrAsc == null or param.descOrAsc == 0">
+			desc
+		</if>
+	</select>
+	
+	<select id="getPersPerformance" resultType="java.math.BigDecimal">
+		
+		SELECT 
+		    (SELECT 
+		            IFNULL(SUM((buying_price * buying_shares + CASE
+		                            WHEN sign_type = 0 THEN buying_fee + buying_stamp_duty
+		                            ELSE (buying_fee + buying_stamp_duty) * - 1
+		                        END) / exchange_rate),
+		                        0)
+		        FROM
+		            user_follow_up_trading
+		        WHERE
+		            user_id = #{userId}
+		            <if test="startTime != null">
+		            	and trading_time >= #{startTime}
+		            </if>
+		            <if test="endTime != null">
+		            	and trading_time &lt;= #{endTime}
+		            </if>
+		            
+		            ) + (SELECT 
+		            IFNULL(SUM((buying_price * buying_shares + buying_fee + buying_stamp_duty) / exchange_rate),
+		                        0)
+		        FROM
+		            user_stock_pending
+		        WHERE
+		            user_id = #{userId} AND position_status = 2
+		            <if test="startTime != null">
+		            	and pending_time >= #{startTime}
+		            </if>
+		            <if test="endTime != null">
+		            	and pending_time &lt;= #{endTime}
+		            </if>
+		            ) + (SELECT 
+		            IFNULL(SUM((amount_received / exchange_rate)),
+		                        0)
+		        FROM
+		            user_stock_closing_position
+		        WHERE
+		            user_id = #{userId}
+		            <if test="startTime != null">
+		            	and closing_time >= #{startTime}
+		            </if>
+		            <if test="endTime != null">
+		            	and closing_time &lt;= #{endTime}
+		            </if>
+		            )
+	</select>
+	
+	<sql id="foreach">
+        <foreach collection="ids" item="id" index="i" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </sql>
+        
+    <!-- 数据报表-用户跟投统计 -->
+	<select id="userFollowStatistics" resultType="vo.manager.UserFollowStatisticsVO">
+		SELECT
+		    userInfo.*,  <!-- 选择用户信息表所有字段 -->
+		    levelDef.level_val,
+		  	levelDef.level_name,
+		    <!-- 1. 统计非结束状态(follow_status!=2)的跟投记录数 -->
+		    COUNT(DISTINCT CASE WHEN followRecord.follow_status != 2 THEN followRecord.id END) AS active_follow_count,
+		    <!-- 2. 统计非结束状态的初始跟投资金总额 -->
+		    COALESCE(SUM(CASE WHEN followRecord.follow_status != 2 THEN followRecord.initial_follow_sum END), 0) AS active_initial_sum,
+		    <!-- 3. 统计非结束状态的当前跟投资金总额 -->
+		    COALESCE(SUM(CASE WHEN followRecord.follow_status != 2 THEN followRecord.current_follow_sum END), 0) AS active_current_sum,
+		    <!-- 4. 统计非结束状态的去重导师数量 -->
+		    COUNT(DISTINCT CASE WHEN followRecord.follow_status != 2 THEN followRecord.tutor_id END) AS active_tutor_count,
+		    <!-- 5. 统计所有状态的跟投总记录数 -->
+		    COUNT(followRecord.id) AS total_follow_count,
+		    <!-- 6. 统计所有状态的初始跟投资金总额 -->
+		    COALESCE(SUM(followRecord.initial_follow_sum), 0) AS total_initial_sum,
+		    <!-- 7. 统计所有状态的退还跟投资金总额 -->
+		    COALESCE(SUM(followRecord.return_follow_sum), 0) AS total_return_sum,
+		    <!-- 8. 统计所有状态的导师抽成总额 -->
+		    COALESCE(SUM(followRecord.tutor_commission), 0) AS total_tutor_commission,
+		    <!-- 9. 统计所有状态的平台抽成总额 -->
+		    COALESCE(SUM(followRecord.platform_commission), 0) AS total_platform_commission
+		FROM 
+			user_info AS userInfo  <!-- 主表使用别名userInfo -->
+			LEFT JOIN user_follow_up_record AS followRecord ON userInfo.id = followRecord.user_id <!-- 关联表使用别名followRecord 关联条件：用户ID匹配-->
+		    LEFT JOIN level_def levelDef ON userInfo.level_id = levelDef.id
+		    <!-- 添加时间范围筛选条件（在ON子句中确保不影响主表记录） -->
+		    <if test="param.startTime != null">
+				 AND followRecord.follow_start_time >= #{param.startTime}
+			</if>
+			<if test="param.endTime != null">
+				AND followRecord.follow_start_time &lt;= #{param.endTime}
+			</if>
+		<trim prefix="where" suffixOverrides="and">
+			<if test="param.userId != null and param.userId > 0">
+				userInfo.id = #{param.userId} and
+			</if>
+		</trim>
+		GROUP BY userInfo.id
+	</select>
+</mapper>

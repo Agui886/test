@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.UserFollowUpTradingMapper">
+	<!-- 跟投管理-用户交易记录 -->
+	<select id="managerList" resultType="entity.UserFollowUpTrading">
+		SELECT
+		  followTrading.*,
+		  tutorInfo.tutor_name AS tutorName,
+		  userInfo.level_id AS levelId,
+		  levelDef.level_val,
+		  levelDef.level_name,
+		  signInfo.item_type,
+		  signInfo.sign_type,
+		  signInfo.stock_name,
+		  signInfo.stock_code,
+		  signInfo.stock_type 
+		FROM
+		  user_follow_up_trading followTrading
+		  LEFT JOIN tutor_info tutorInfo ON followTrading.tutor_id = tutorInfo.id
+		  LEFT JOIN user_info userInfo ON followTrading.user_id = userInfo.id
+		  LEFT JOIN sign_info signInfo ON followTrading.sign_id = signInfo.id 
+		  LEFT JOIN level_def levelDef ON userInfo.level_id = levelDef.id
+		<trim prefix="where" suffixOverrides="and">
+			
+			<if test="param.id != null and param.id > 0">
+			 	followTrading.id = #{param.id} and
+			</if>
+			
+			<if test="param.userId != null and param.userId > 0">
+			 	followTrading.user_id = #{param.userId} and
+			</if>
+			
+			<if test="param.positionId != null and param.positionId > 0">
+			 	followTrading.position_id = #{param.positionId} and
+			</if>
+			
+			<if test="param.followRecordId != null and param.followRecordId > 0">
+			 	followTrading.follow_record_id = #{param.followRecordId} and
+			</if>
+			
+			<if test="param.tradingOrderSn != null and param.tradingOrderSn != ''">
+				followTrading.trading_order_sn = #{param.tradingOrderSn} and
+			</if>
+			
+			<if test="param.tutorId != null and param.tutorId > 0">
+			 	followTrading.tutor_id = #{param.tutorId} and
+			</if>
+			
+			<if test="param.domainType != null">
+			 	tutorInfo.domain_type = #{param.domainType} and
+			</if>
+			
+			<if test="param.itemType != null">
+			 	signInfo.item_type = #{param.itemType} and
+			</if>
+			
+			<if test="param.signType != null">
+			 	signInfo.sign_type = #{param.signType} and
+			</if>
+			
+			<if test="param.stockName != null and param.stockName != ''">
+			 	signInfo.stock_name = #{param.stockName} and
+			</if>
+			
+			<if test="param.stockCode != null and param.stockCode != ''">
+			 	signInfo.stock_code = #{param.stockCode} and
+			</if>
+			
+			<if test="param.tradingTimeStart != null">
+				followTrading.trading_time >= #{param.tradingTimeStart} and
+			</if>
+			<if test="param.tradingTimeEnd != null">
+				followTrading.trading_time &lt;= #{param.tradingTimeEnd} and
+			</if>
+			
+			<if test="param.operator != null and param.operator != ''">
+				followTrading.operator = #{param.operator} and
+			</if>
+			
+			<if test="param.stockCodeOrName != null and param.stockCodeOrName != ''">
+				(signInfo.stock_code like '%${param.stockCodeOrName}%' or signInfo.stock_name like '%${param.stockCodeOrName}%') and
+			</if>
+			
+		</trim>
+		ORDER BY followTrading.trading_time DESC
+	</select>
+</mapper>

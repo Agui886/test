@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.TutorInfoMapper">
+
+	<select id="followTutorList" resultType="vo.server.FollowTutorListVO">
+		SELECT 
+		    id,
+		    avatar_pic,
+		    tutor_name,
+		    tutor_profile,
+		    experience,
+		    label,
+		    configuration_json
+		FROM
+		    tutor_info
+		<trim prefix="where" suffixOverrides="and">
+			
+			<if test="param.isEnabled != null">
+				is_enabled=#{param.isEnabled} and
+			</if>
+			
+			<if test="param.domainType != null">
+				domain_type=#{param.domainType} and
+			</if>
+			
+			<if test="param.privateInvitationCode != null">
+				private_invitation_code=#{param.privateInvitationCode} and
+			</if>
+			
+			<if test="param.recommendType != null">
+				<if test="param.recommendType==0">
+				 
+				</if>
+				<if test="param.recommendType==1">
+					JSON_CONTAINS(configuration_json, '{"itemType": 0, "isEnabled": true}', '$') 
+				</if>
+				<if test="param.recommendType==2">
+					(
+					JSON_CONTAINS(configuration_json, '{"itemType": 1, "isEnabled": true}', '$') 
+					OR
+  					JSON_CONTAINS(configuration_json, '{"itemType": 2, "isEnabled": true}', '$') 
+  					OR
+  					JSON_CONTAINS(configuration_json, '{"itemType": 3, "isEnabled": true}', '$') 
+  					OR
+  					JSON_CONTAINS(configuration_json, '{"itemType": 4, "isEnabled": true}', '$') 
+  					OR
+  					JSON_CONTAINS(configuration_json, '{"itemType": 5, "isEnabled": true}', '$') 
+  					OR
+  					JSON_CONTAINS(configuration_json, '{"itemType": 6, "isEnabled": true}', '$') 
+  					)
+				</if>
+			</if>
+			
+			<if test="param.userId != null and param.userId > 0">
+				
+			</if>
+			
+		</trim>
+		order by sort asc
+	</select>
+	
+	<!-- 数据报表-导师数据统计 -->
+	<select id="tutorDataStatistics" resultType="vo.manager.TutorDataStatisticsVO">
+		SELECT
+		    tutorInfo.*,
+		    <!-- 1. 当前非结束状态的去重用户数 -->
+		    COUNT(DISTINCT CASE WHEN followRecord.follow_status != 2 THEN followRecord.user_id END) AS current_follow_users,
+		    <!-- 2. 当前非结束状态的跟投总额 -->
+		    COALESCE(SUM(CASE WHEN followRecord.follow_status != 2 THEN followRecord.current_follow_sum END), 0) AS current_follow_sum,
+		    <!-- 3. 历史所有状态的去重用户数 -->
+		    COUNT(DISTINCT followRecord.user_id) AS total_follow_users,
+		    <!-- 4. 历史初始跟投总额 -->
+		    COALESCE(SUM(followRecord.initial_follow_sum), 0) AS total_initial_sum,
+		    <!-- 5. 历史退还总额 -->
+		    COALESCE(SUM(followRecord.return_follow_sum), 0) AS total_return_sum,
+		    <!-- 6. 导师总抽成 -->
+		    COALESCE(SUM(followRecord.tutor_commission), 0) AS total_tutor_commission,
+		    <!-- 7. 平台总抽成 -->
+		    COALESCE(SUM(followRecord.platform_commission), 0) AS total_platform_commission
+		FROM tutor_info tutorInfo
+		LEFT JOIN user_follow_up_record followRecord 
+		    ON tutorInfo.id = followRecord.tutor_id
+		   <!--  添加时间范围条件到ON子句（确保保留无跟投记录的导师） -->
+		    <if test="param.startTime != null">
+				 AND followRecord.follow_start_time >= #{param.startTime}
+			</if>
+			<if test="param.endTime != null">
+				AND followRecord.follow_start_time &lt;= #{param.endTime}
+			</if>
+		<trim prefix="where" suffixOverrides="and">
+			<if test="param.tutorId != null and param.tutorId > 0">
+				tutorInfo.id = #{param.tutorId} and
+			</if>
+		</trim>
+		GROUP BY tutorInfo.id
+	</select>
+
+</mapper>

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.CashoutRecordMapper">
+
+	<select id="managerList" resultType="entity.CashoutRecord">
+		select 
+			t.*,
+			(select id from user_info i where i.id=u.agent_id
+			<if test="param.agentId != null and param.agentId > 0">
+				and i.id=#{param.agentId}
+			</if>) as agentId,
+			(select nickname from user_info i where  i.id=u.agent_id) as agentName
+		from cashout_record t inner join user_info u on u.id=t.user_id
+		
+		<trim prefix="where" suffixOverrides="and">
+			<if test="param.id != null and param.id > 0">
+				t.id=#{param.id} and 
+			</if>
+			<if test="param.userId != null and param.userId > 0">
+				u.id=#{param.userId} and
+			</if>
+			
+			<if test="param.orderSn != null and param.orderSn != ''">
+				order_sn=#{param.orderSn} and
+			</if>
+			<if test="param.cashoutTypeCode != null and param.cashoutTypeCode != ''">
+				cashout_type_code=#{param.cashoutTypeCode} and
+			</if>
+			<if test="param.orderStatus != null">
+				order_status=#{param.orderStatus} and
+			</if>
+			<if test="param.requestTimeStart != null">
+				request_time >= #{param.requestTimeStart} and
+			</if>
+			<if test="param.requestTimeEnd != null">
+				request_time &lt;= #{param.requestTimeEnd} and
+			</if>
+			<if test="param.operateTimeStart != null">
+				operate_time >= #{param.operateTimeStart} and
+			</if>
+			<if test="param.operateTimeEnd != null">
+				operate_time &lt;= #{param.operateTimeEnd}
+			</if>
+		</trim>
+		order by t.id desc
+	</select>
+	
+	<select id="record" resultType="vo.server.CashoutRecordVO">
+		SELECT 
+			id,
+		    order_sn,
+		    cashout_type_name,
+		    card_no,
+		    bank_name,
+		    order_amount,
+		    final_amount,
+		    request_time,
+		    order_status
+		FROM
+		    cashout_record
+		<trim prefix="where" suffixOverrides="and">
+			<if test="param.userId != null and param.userId > 0">
+				user_id=#{param.userId} and 
+			</if>
+			<if test="param.orderStatus != null">
+				order_status=#{param.orderStatus} and
+			</if>
+			<if test="param.searchDate!= null">
+				DATE_FORMAT(request_time, '%Y-%m-%d') = #{param.searchDate} and
+			</if>
+			<if test="param.startTime != null">
+				request_time >= #{param.startTime} and
+			</if>
+			<if test="param.endTime != null">
+				request_time &lt;= #{param.endTime}
+			</if>
+		</trim>
+		ORDER BY id DESC
+	</select>
+
+</mapper>

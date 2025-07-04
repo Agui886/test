@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.SysMenuMapper">
+	<select id="selectAllMenuAjaxByUserId" resultType="java.lang.String">
+        select menu.ajax
+        from sys_menu as menu
+                 inner join sys_user_menu_relation as rm on menu.id = rm.sys_menu_id
+        where rm.sys_user_id = #{userId}
+          and ajax != '';
+    </select>
+</mapper>

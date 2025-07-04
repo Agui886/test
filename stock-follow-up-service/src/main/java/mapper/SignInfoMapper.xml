@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.SignInfoMapper">
+	<select id="managerList" resultType="entity.SignInfo">
+		 WITH RECURSIVE cte AS (
+		  SELECT
+		    s.id,
+		    s.buy_sign_id,
+		    s.id AS root_id 
+		  FROM
+		    sign_info s 
+		  WHERE
+		    s.buy_sign_id IS NULL UNION ALL
+		  SELECT
+		    s.id,
+		    s.buy_sign_id,
+		    c.root_id 
+		  FROM
+		    sign_info s
+		JOIN cte c ON s.buy_sign_id = c.id),
+		group_max AS (SELECT root_id, MAX(id) AS max_id FROM cte GROUP BY root_id) SELECT
+		s.*,
+		t.tutor_name, 
+    	(
+	   		SELECT 
+	   			buySignInfo.price1 
+	   		FROM 
+	   			sign_info buySignInfo 
+	   		WHERE 
+	   			buySignInfo.id = s.buy_sign_id
+    	) buyPrice1 
+		FROM
+		  cte
+		  LEFT JOIN group_max ON cte.root_id = group_max.root_id
+		  INNER JOIN sign_info s ON cte.id = s.id <!-- 连接回sign_info获取所有字段 -->
+		  INNER JOIN tutor_info t ON s.tutor_id = t.id <!-- 连接tutor_info表 -->
+		    
+		<trim prefix="where" suffixOverrides="and">
+			<if test="param.id != null and param.id > 0">
+				s.id=#{param.id} and
+			</if>
+			<if test="param.tutor != null and param.tutor != ''">
+				t.tutor_name like '%${param.tutor}%' and
+			</if>
+			<if test="param.domainType != null">
+				t.domain_type=#{param.domainType} and
+			</if>
+			<if test="param.itemType != null">
+				s.item_type=#{param.itemType} and
+			</if>
+			<if test="param.signType != null">
+				s.sign_type=#{param.signType} and
+			</if>
+			<if test="param.isConfigured != null">
+				s.is_configured=#{param.isConfigured} and
+			</if>
+			<if test="param.displayTimeStart != null">
+				a.display_release_time >= #{param.displayTimeStart} and
+			</if>
+			<if test="param.displayTimeEnd != null">
+				a.display_release_time &lt;= #{param.displayTimeEnd} and
+			</if>
+			<if test="param.realTimeStart != null">
+				a.real_release_time >= #{param.realTimeStart} and
+			</if>
+			<if test="param.realTimeEnd != null">
+				a.real_release_time &lt;= #{param.realTimeEnd} and
+			</if>
+		</trim>
+		ORDER BY group_max.max_id DESC, cte.id DESC 
+	</select>
+</mapper>

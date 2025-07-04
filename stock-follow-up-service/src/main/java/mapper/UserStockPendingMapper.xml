@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.UserStockPendingMapper">
+	<select id="managerPendingList" resultType="vo.manager.PendingListVO">
+		SELECT 
+		    usp.id,
+		    position_id,
+		    trading_order_sn,
+		    stock_name,
+		    stock_code,
+		    stock_type,
+		    stock_plate,
+		    user_id,
+		    a.id agentId,
+		    a.real_name agentName,
+		    buying_shares,
+		    position_direction,
+		    lever,
+		    buying_price,
+		    buying_fee,
+		    buying_stamp_duty,
+		    position_status,
+		    is_block_trading,
+		    pending_time,
+		    position_time,
+		    exchange_rate
+		FROM
+		    user_stock_pending usp
+		        INNER JOIN
+		    user_info u ON usp.user_id = u.id
+		        LEFT JOIN
+		    user_info a ON u.agent_id = a.id
+		<trim prefix="where" suffixOverrides="and">
+			<if test="param.positionId != null and param.positionId > 0">
+				position_id=#{param.positionId} and
+			</if>
+			<if test="param.tradingOrderSn != null and param.tradingOrderSn != ''">
+				trading_order_sn=#{param.tradingOrderSn} and
+			</if>
+			<if test="param.stockCodeOrName != null and param.stockCodeOrName != ''">
+				(stock_code like '%${param.stockCodeOrName}%' or stock_name like '%${param.stockCodeOrName}%') and
+			</if>
+			<if test="param.agentId != null and param.agentId > 0">
+				a.id=#{param.agentId} and
+			</if>
+			<if test="param.userId != null and param.userId > 0">
+				u.id=#{param.userId} and
+			</if>
+        	<if test="param.stockType != null and param.stockType != ''">
+        		stock_type = #{param.stockType} and
+        	</if>
+        	<if test="param.stockPlate != null and param.stockPlate != ''">
+        		stock_plate = #{param.stockPlate} and
+        	</if>
+        	<if test="param.isBlockTrading != null">
+	        	is_block_trading=#{param.isBlockTrading} and
+        	</if>
+        	<if test="param.pendingTimeStart != null">
+        		pending_time >= #{param.pendingTimeStart} and
+        	</if>
+        	<if test="param.pendingTimeEnd != null">
+        		pending_time &lt;= #{param.pendingTimeEnd} and
+        	</if>
+        	<if test="param.positionStatus != null and param.positionStatus > 0">
+        		position_status=#{param.positionStatus}
+        	</if>
+		</trim>
+		order by position_status, pending_time desc
+	</select>
+</mapper>

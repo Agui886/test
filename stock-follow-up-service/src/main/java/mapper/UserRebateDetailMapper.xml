@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.UserRebateDetailMapper">
+<!--我的-资产-代理中心-返佣明细-会员返佣详情-返佣列表分页数据 -->
+	<select id="userRebateDetail" resultType="entity.UserRebateDetail">
+		SELECT
+		  userRebate.*,
+		  fromUserInfo.nickname AS fromUserNickname
+		FROM
+		  user_rebate_detail userRebate 
+		  LEFT JOIN user_info fromUserInfo ON userRebate.from_user_id = fromUserInfo.id
+		<trim prefix="where" suffixOverrides="and">
+			
+			userRebate.is_settlemented = 1 and
+			
+			<if test="param.userId != null and param.userId > 0">
+			 	userRebate.user_id = #{param.userId} and
+			</if>
+			
+			<if test="param.fromUserId != null and param.fromUserId > 0">
+			 	userRebate.from_user_id = #{param.fromUserId} and
+			</if>
+			
+			<if test="param.settlementDateStart != null">
+				userRebate.settlement_date >= #{param.settlementDateStart} and
+			</if>
+			<if test="param.settlementDateEnd != null">
+				userRebate.settlement_date &lt;= #{param.settlementDateEnd} and
+			</if>
+			
+		</trim>
+		ORDER BY userRebate.settlement_date DESC
+	</select>
+	
+	<select id="managerList" resultType="vo.manager.RebateRecordVO">
+		SELECT 
+		    user_id,
+		    u.nickname,
+		    r.user_level_val,
+		    r.user_level_name,
+		    u.agent_id,
+		    (select nickname from user_info i where i.id=u.agent_id) as agentName,
+		    u.general_agent_id,
+		    (select nickname from user_info i where i.id=u.general_agent_id) as generalAgentName,
+		    (select count(distinct from_user_id) from user_rebate_detail i where i.user_id = r.user_id and i.settlement_date=r.settlement_date) as rebateMemberCount,
+			ifnull((select sum(performance) from user_rebate_detail i where i.user_id=r.user_id and i.settlement_date=r.settlement_date and from_user_level_val=1), 0) as lv1_performance,
+		    ifnull((select sum(rebate_amount) from user_rebate_detail i where i.user_id=r.user_id and i.settlement_date=r.settlement_date and from_user_level_val=1), 0) as lv1_rebate_amount,
+		    ifnull((select sum(performance) from user_rebate_detail i where i.user_id=r.user_id and i.settlement_date=r.settlement_date and from_user_level_val=2), 0) as lv2_performance,
+		    ifnull((select sum(rebate_amount) from user_rebate_detail i where i.user_id=r.user_id and i.settlement_date=r.settlement_date and from_user_level_val=2), 0) as lv2_rebate_amount,
+		    ifnull((select sum(performance) from user_rebate_detail i where i.user_id=r.user_id and i.settlement_date=r.settlement_date and from_user_level_val=3), 0) as lv3_performance,
+		    ifnull((select sum(rebate_amount) from user_rebate_detail i where i.user_id=r.user_id and i.settlement_date=r.settlement_date and from_user_level_val=3), 0) as lv3_rebate_amount,
+		    ifnull((select sum(performance) from user_rebate_detail i where i.user_id=r.user_id and i.settlement_date=r.settlement_date and from_user_level_val=4), 0) as lv4_performance,
+		    ifnull((select sum(rebate_amount) from user_rebate_detail i where i.user_id=r.user_id and i.settlement_date=r.settlement_date and from_user_level_val=4), 0) as lv4_rebate_amount,
+		    sum(performance) as totalPerformance,
+		    sum(rebate_amount) as totalRebateAmount,
+		    settlement_date
+		FROM
+		    user_rebate_detail r
+		        INNER JOIN
+		    user_info u ON r.user_id = u.id 
+		where r.is_settlemented = 1
+		<if test="param.userId !=null and param.userId > 0">
+			and r.user_id=#{param.userId}
+		</if>
+		<if test="param.userLevelVal !=null and param.userLevelVal > 0">
+			and r.user_level_val=#{param.userLevelVal}
+		</if>
+		<if test="param.agentId !=null and param.agentId > 0">
+			and u.agent_id=#{param.agentId}
+		</if>
+		<if test="param.generalAgentId !=null and param.generalAgentId > 0">
+			and u.general_agent_id=#{param.generalAgentId}
+		</if>
+		<if test="param.startDate !=null">
+			and r.settlement_date>=#{param.startDate}
+		</if>
+		<if test="param.endDate !=null">
+			and r.settlement_date&lt;=#{param.endDate}
+		</if>
+		group by user_id,u.nickname, r.user_level_val,r.user_level_name,u.agent_id,u.general_agent_id,settlement_date
+	</select>
+	
+	<select id="managerDetailList" resultType="vo.manager.RebateDetailListVO">
+			select 
+				tb.*,
+			    (select nickname from user_info i where i.id=tb.from_user_agent_id) as fromUserAgentName,
+			    (select nickname from user_info i where i.id=tb.from_user_general_agent_id) as fromUserGeneralAgentName
+			from 
+				(SELECT 
+					user_id,
+					(select nickname from user_info i where i.id=r.user_id) as nickname,
+					r.user_level_val,
+					r.user_level_name,
+					r.from_user_id,
+					(select nickname from user_info i where i.id=r.from_user_id) as from_user_nickname,
+					r.from_user_level_val,
+					r.from_user_level_name,
+					(select agent_id from user_info i where i.id=r.from_user_id) as from_user_agent_id,
+					(select general_agent_id from user_info i where i.id=r.from_user_id) as from_user_general_agent_id,
+					r.performance,
+					r.rebate_ratio,
+					r.rebate_amount,
+					r.settlement_date,
+					r.settlement_date_time,
+					rebate_type,
+					trading_order_sn
+				FROM
+					user_rebate_detail r where r.is_settlemented=1 
+					<if test="param.userId !=null and param.userId > 0">
+						and r.user_id=#{param.userId}
+					</if>
+					<if test="param.fromUserId !=null and param.fromUserId > 0">
+						and r.from_user_id=#{param.fromUserId}
+					</if>
+					<if test="param.fromUserLevelVal !=null and param.fromUserLevelVal > 0">
+						and r.from_user_level_val=#{param.fromUserLevelVal}
+					</if>
+					<if test="param.startDate !=null">
+						and r.settlement_date>=#{param.startDate}
+					</if>
+					<if test="param.endDate !=null">
+						and r.settlement_date&lt;=#{param.endDate}
+					</if>
+			order by id desc) tb
+			<trim prefix="where" suffixOverrides="and">
+				<if test="param.fromUserAgentId !=null and param.fromUserAgentId > 0">
+					tb.from_user_agent_id=#{param.fromUserAgentId} and
+				</if>
+				<if test="param.fromUserGeneralAgentId !=null and param.fromUserGeneralAgentId > 0">
+					tb.from_user_general_agent_id=#{param.fromUserGeneralAgentId}
+				</if>
+			</trim>
+	</select>
+</mapper>

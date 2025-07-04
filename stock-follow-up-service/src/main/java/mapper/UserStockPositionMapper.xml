@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.UserStockPositionMapper">
+	<select id="managerStockPositionList" resultType="vo.manager.StockPositionListVO">
+		SELECT 
+		    usp.id,
+		    stock_name,
+		    stock_code,
+		    stock_type,
+		    stock_plate,
+		    position_type,
+		    user_id,
+		    a.id agentId,
+		    a.real_name agentName,
+		    position_direction,
+		    lock_in_period,
+		    buying_price,
+		    buying_shares,
+		    lever,
+		    buying_fee,
+		    buying_stamp_duty,
+		    is_lock,
+		    lock_msg,
+		    position_time,
+		    case when lock_in_period is null or lock_in_period = 0 then 0
+		    else 
+		    (SELECT ifnull(sum(buying_shares), 0) FROM user_stock_pending p where p.position_id=usp.id and p.position_time>date_sub(sysdate(), interval usp.lock_in_period day))
+		    end as unavailableShares
+		FROM
+		    user_stock_position usp
+		        INNER JOIN
+		    user_info u ON usp.user_id = u.id
+		        LEFT JOIN
+		    user_info a ON u.agent_id = a.id
+		WHERE
+		    usp.position_status = 2
+		<choose>
+			<when test="isBlockTrading == true">
+				 and is_block_trading=1
+			</when>
+			<otherwise>
+				and is_block_trading=0
+			</otherwise>
+		</choose>
+		<if test="param.id != null and param.id > 0">
+			and usp.id=#{param.id}
+		</if>
+		<if test="param.stockCodeOrName != null and param.stockCodeOrName != ''">
+			and (stock_code like '%${param.stockCodeOrName}%' or stock_name like '%${param.stockCodeOrName}%')
+		</if>
+		<if test="param.agentId != null and param.agentId > 0">
+			and a.id=#{param.agentId}
+		</if>
+		<if test="param.userId != null and param.userId > 0">
+			and u.id=#{param.userId} 
+		</if>
+       	<if test="param.stockType != null and param.stockType != ''">
+       		and stock_type = #{param.stockType}
+       	</if>
+       	<if test="param.stockPlate != null and param.stockPlate != ''">
+       		and stock_plate = #{param.stockPlate}
+       	</if>
+       	<if test="param.startTime != null">
+       		and position_time >= #{param.startTime} 
+       	</if>
+       	<if test="param.endTime != null">
+       		and position_time &lt;= #{param.endTime}
+       	</if>
+       	order by id desc
+	</select>
+</mapper>

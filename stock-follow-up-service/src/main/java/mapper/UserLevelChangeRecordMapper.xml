@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.UserLevelChangeRecordMapper">
+	<!-- 代理升降级记录 -->
+	<select id="managerList" resultType="entity.UserLevelChangeRecord">
+		SELECT
+		  userLevelChangeRecord.*,
+		  userInfo.level_id AS levelId,
+		  userInfo.nickname AS nickname,
+		  userInfo.account_type AS accountType,
+		  userInfo.agent_id,
+		  userInfo.general_agent_id,
+		  (SELECT nickname from user_info agentUser where agentUser.id=userInfo.agent_id) as agentName,
+		  (SELECT nickname FROM user_info generalAgentUser WHERE generalAgentUser.id = userInfo.general_agent_id) AS generalAgentName,
+		  levelDef.level_val,
+		  levelDef.level_name
+		FROM
+		  user_level_change_record userLevelChangeRecord
+		  LEFT JOIN user_info userInfo ON userLevelChangeRecord.user_id = userInfo.id
+		  LEFT JOIN level_def levelDef ON userInfo.level_id = levelDef.id
+		<trim prefix="where" suffixOverrides="and">
+			
+			<if test="param.id != null and param.id > 0">
+			 	userLevelChangeRecord.id = #{param.id} and
+			</if>
+			
+			<if test="param.userId != null and param.userId > 0">
+			 	userLevelChangeRecord.user_id = #{param.userId} and
+			</if>
+			
+			<if test="param.accountType != null">
+			 	userInfo.account_type = #{param.accountType} and
+			</if>
+			
+			<if test="param.levelId != null and param.levelId > 0">
+			 	userInfo.level_id = #{param.levelId} and
+			</if>
+			
+			<if test="param.agentId != null and param.agentId > 0">
+			 	userInfo.agent_id = #{param.agentId} and
+			</if>
+			
+			<if test="param.generalAgentId != null and param.generalAgentId > 0">
+			 	userInfo.general_agent_id = #{param.generalAgentId} and
+			</if>
+			
+			<if test="param.changeType != null">
+			 	userLevelChangeRecord.change_type = #{param.changeType} and
+			</if>
+			
+			<if test="param.createTimeStart != null">
+				userLevelChangeRecord.create_time >= #{param.createTimeStart} and
+			</if>
+			<if test="param.createTimeEnd != null">
+				userLevelChangeRecord.create_time &lt;= #{param.createTimeEnd} and
+			</if>
+			
+		</trim>
+		order by userLevelChangeRecord.create_time desc
+	</select>
+
+</mapper>

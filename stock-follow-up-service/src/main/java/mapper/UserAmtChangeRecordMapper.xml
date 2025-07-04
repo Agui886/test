@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.UserAmtChangeRecordMapper">
+	<select id="managerList" resultType="entity.UserAmtChangeRecord">
+		select 
+			t.*,
+			a.nickname agentName,
+			u.agent_id
+		from user_amt_change_record t 
+			inner join user_info u on t.user_id=u.id
+			left join user_info a on u.agent_id=a.id
+		<trim prefix="where" suffixOverrides="and">
+			<if test="param.userId != null and param.userId > 0">
+				t.user_id=#{param.userId} and
+			</if>
+			<if test="param.agentId != null and param.agentId > 0">
+				u.agent_id=#{param.agentId} and
+			</if>
+			<if test="param.deType != null and param.deType != ''">
+				t.de_type=#{param.deType} and
+			</if>
+			<if test="param.startTime != null">
+				t.add_time >= #{param.startTime} and
+			</if>
+			<if test="param.endTime != null">
+				t.add_time &lt;= #{param.endTime}
+			</if>
+		</trim>
+		order by id desc
+	</select>
+</mapper>

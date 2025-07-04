@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.UserFollowUpPositionMapper">
+	<!-- 跟投管理-用户持仓记录 -->
+	<select id="managerList" resultType="entity.UserFollowUpPosition">
+		SELECT
+		  followPosition.*,
+		  tutorInfo.tutor_name AS tutorName,
+		  userInfo.level_id AS levelId,
+		  followRecord.item_type
+		FROM
+		  user_follow_up_position followPosition
+		  LEFT JOIN tutor_info tutorInfo ON followPosition.tutor_id = tutorInfo.id
+		  LEFT JOIN user_info userInfo ON followPosition.user_id = userInfo.id
+		  LEFT JOIN user_follow_up_record followRecord ON followPosition.follow_record_id = followRecord.id
+		<trim prefix="where" suffixOverrides="and">
+			
+			<if test="param.id != null and param.id > 0">
+			 	followPosition.id = #{param.id} and
+			</if>
+			
+			<if test="param.userId != null and param.userId > 0">
+			 	followPosition.user_id = #{param.userId} and
+			</if>
+			
+			<if test="param.followRecordId != null and param.followRecordId > 0">
+			 	followPosition.follow_record_id = #{param.followRecordId} and
+			</if>
+			
+			<if test="param.tutorId != null and param.tutorId > 0">
+			 	followPosition.tutor_id = #{param.tutorId} and
+			</if>
+			
+			<if test="param.positionStatus != null">
+			 	followPosition.position_status = #{param.positionStatus} and
+			</if>
+			
+			
+			<if test="param.itemType != null">
+			 	followRecord.item_type = #{param.itemType} and
+			</if>
+			
+			<if test="param.creatPositionTimeStart != null">
+				followPosition.creat_position_time >= #{param.creatPositionTimeStart} and
+			</if>
+			<if test="param.creatPositionTimeEnd != null">
+				followPosition.creat_position_time &lt;= #{param.creatPositionTimeEnd} and
+			</if>
+			
+			<if test="param.stockCodeOrName != null and param.stockCodeOrName != ''">
+				(followPosition.stock_code like '%${param.stockCodeOrName}%' or followPosition.stock_name like '%${param.stockCodeOrName}%') and
+			</if>
+			
+		</trim>
+		ORDER BY followPosition.creat_position_time DESC
+	</select>
+	
+	<!-- 资金分布（资金分析统计）-查询持仓市值统计list(查user_stock_position、user_follow_up_position两张表) -->
+	<select id="fundAnalysisStatisticsPositionResultVOList" resultType="vo.manager.FundAnalysisStatisticsPositionResultVO">
+		SELECT 
+		    stock_type,
+		    stock_code,
+		    SUM(total_shares) AS total_shares
+		FROM (
+		    <!-- 过滤 buying_shares 为0的记录 -->
+		    SELECT 
+		        stock_type,
+		        stock_code,
+		        SUM(buying_shares) AS total_shares
+		    FROM user_stock_position
+		    WHERE position_status = 2
+		      AND buying_shares > 0  <!-- 添加过滤条件 -->
+		    GROUP BY stock_type, stock_code
+		    UNION ALL
+		    <!-- 过滤 hold_shares 为0的记录 -->
+		    SELECT 
+		        stock_type,
+		        stock_code,
+		        SUM(hold_shares) AS total_shares
+		    FROM user_follow_up_position
+		    WHERE position_status = 0
+		      AND hold_shares > 0    <!-- 添加过滤条件 -->
+		    GROUP BY stock_type, stock_code
+		) combined_data
+		GROUP BY stock_type, stock_code
+		HAVING SUM(total_shares) > 0;  <!-- 确保最终结果不为0 -->
+	</select>
+</mapper>

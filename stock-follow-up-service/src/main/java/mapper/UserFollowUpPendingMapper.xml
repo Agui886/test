@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.UserFollowUpPendingMapper">
+
+	<!-- 跟投-导师信息-跟单详情-委托单记录 -->
+	<select id="userFollowPending" resultType="vo.server.UserFollowPendingVO">
+		SELECT
+		  followPending.sign_trace_status,
+		  followPending.pending_status,
+		  signInfo.stock_code,
+		  signInfo.stock_name,
+		  signInfo.sign_type,
+		  signInfo.position,
+		  signInfo.price1,
+		  signInfo.display_release_time,
+		  DATE_ADD(signInfo.display_release_time, INTERVAL 15 MINUTE) AS display_release_time15, <!-- 在结果中显示 display_release_time +15 分钟 -->
+		  followTrading.buying_price,
+		  followTrading.buying_shares,
+		  followTrading.finish_time,
+		  followTrading.flow_time1,
+		  followTrading.flow_time2,
+		  followTrading.flow_time3,
+		  followTrading.flow_time4,
+		  followTrading.trading_position,
+		  followTrading.be_current_follow_sum,
+		  followTrading.af_current_follow_sum,
+		  followTrading.be_current_position_value_ratio,
+		  followTrading.af_current_position_value_ratio,
+		  followTrading.be_current_follow_position_value_ratio,
+		  followTrading.af_current_follow_position_value_ratio,
+		  followPending.pending_status,
+		  followRecord.follow_end_time,
+		  followRecord.follow_status
+		FROM
+		  user_follow_up_pending followPending
+		  LEFT JOIN sign_info signInfo ON followPending.sign_id = signInfo.id 
+		  LEFT JOIN user_follow_up_trading followTrading ON followPending.id = followTrading.pending_id
+		  LEFT JOIN user_follow_up_record followRecord ON followPending.follow_record_id = followRecord.id
+		<trim prefix="where" suffixOverrides="and">
+			
+			<if test="param.userId != null and param.userId > 0">
+				followPending.user_id = #{param.userId} and
+			</if>
+			
+			<if test="param.followRecordId != null and param.followRecordId > 0">
+				followPending.follow_record_id = #{param.followRecordId} and
+			</if>
+			
+			<if test="param.positionId != null and param.positionId > 0">
+				followPending.position_id = #{param.positionId} and
+			</if>
+			
+			
+			<if test="param.displayReleaseTimeType != null">
+				<!-- 今天 -->
+				<if test="param.displayReleaseTimeType==1">
+					signInfo.display_release_time >= CURDATE() and<!-- 今天 00:00:00 -->
+		  			signInfo.display_release_time &lt;= NOW() - INTERVAL 15 MINUTE and<!-- 当前时间节点 减15分钟（包含） -->
+				</if>
+				<!-- 昨天 -->
+				<if test="param.displayReleaseTimeType==2">
+					signInfo.display_release_time >= DATE_SUB(CURDATE(), INTERVAL 1 DAY) and <!-- 昨天 00:00:00 -->
+		  			signInfo.display_release_time &lt; CURDATE() and <!-- 今天 00:00:00（不包含） -->
+				</if>
+			</if>
+			
+			<if test="param.displayReleaseTimeStart15 != null">
+				signInfo.display_release_time >= #{param.displayReleaseTimeStart15} and
+			</if>
+			
+			<if test="param.displayReleaseTimeEnd15 != null">
+				signInfo.display_release_time &lt;= #{param.displayReleaseTimeEnd15} and
+			</if>
+			
+		</trim>
+		order by signInfo.display_release_time desc
+	</select>
+	
+	<!-- 跟投管理-用户跟投委托 -->
+	<select id="managerList" resultType="entity.UserFollowUpPending">
+		SELECT
+		  followPending.*,
+		  tutorInfo.tutor_name AS tutorName,
+		  userInfo.level_id AS levelId,
+		  followRecord.follow_end_time,
+		  followRecord.follow_status,
+		  signInfo.item_type,
+		  signInfo.sign_type,
+		  signInfo.stock_code,
+		  signInfo.stock_name,
+		  signInfo.position,
+		  signInfo.price1,
+		  signInfo.price2,
+		  signInfo.display_release_time,
+		  signInfo.is_configured,
+		  followTrading.trading_order_sn,
+		  followTrading.finish_time,
+		  followRecord.current_follow_sum,
+		  levelDef.level_val,
+		  levelDef.level_name,
+		  ( SELECT
+		      buyFollowPosition.hold_shares 
+		    FROM
+		      user_follow_up_pending buyFollowPending
+		      LEFT JOIN user_follow_up_position buyFollowPosition ON buyFollowPosition.id = buyFollowPending.position_id 
+		    WHERE
+		      buyFollowPending.sign_id = signInfo.buy_sign_id 
+		  AND buyFollowPending.user_id = followPending.user_id) AS realTimeHoldShares 
+		FROM
+		  user_follow_up_pending followPending
+		  LEFT JOIN tutor_info tutorInfo ON followPending.tutor_id = tutorInfo.id
+		  LEFT JOIN user_info userInfo ON followPending.user_id = userInfo.id
+		  LEFT JOIN user_follow_up_record followRecord ON followPending.follow_record_id = followRecord.id
+		  LEFT JOIN sign_info signInfo ON followPending.sign_id = signInfo.id
+		  LEFT JOIN user_follow_up_trading followTrading ON followPending.id = followTrading.pending_id
+		  LEFT JOIN level_def levelDef ON userInfo.level_id = levelDef.id
+		<trim prefix="where" suffixOverrides="and">
+			
+			<if test="param.id != null and param.id > 0">
+			 	followPending.id = #{param.id} and
+			</if>
+			
+			<if test="param.userId != null and param.userId > 0">
+			 	followPending.user_id = #{param.userId} and
+			</if>
+			
+			<if test="param.levelId != null and param.levelId > 0">
+			 	userInfo.level_id = #{param.levelId} and
+			</if>
+			
+			<if test="param.tutorId != null and param.tutorId > 0">
+			 	followPending.tutor_id = #{param.tutorId} and
+			</if>
+			
+			<if test="param.followRecordId != null and param.followRecordId > 0">
+			 	followPending.follow_record_id = #{param.followRecordId} and
+			</if>
+			
+			<if test="param.positionId != null and param.positionId > 0">
+			 	followPending.position_id = #{param.positionId} and
+			</if>
+			
+			<if test="param.signId != null and param.signId > 0">
+			 	followPending.sign_id = #{param.signId} and
+			</if>
+			
+			<if test="param.tradingOrderSn != null">
+			 	followTrading.trading_order_sn = #{param.tradingOrderSn} and
+			</if>
+			
+			<if test="param.domainType != null">
+			 	tutorInfo.domain_type = #{param.domainType} and
+			</if>
+			
+			<if test="param.itemType != null">
+			 	signInfo.item_type = #{param.itemType} and
+			</if>
+			
+			<if test="param.signType != null">
+			 	signInfo.sign_type = #{param.signType} and
+			</if>
+			
+			<if test="param.pendingTimeStart != null">
+				followPending.pending_time >= #{param.pendingTimeStart} and
+			</if>
+			<if test="param.pendingTimeEnd != null">
+				followPending.pending_time &lt;= #{param.pendingTimeEnd} and
+			</if>
+			
+			<if test="param.pendingStatus != null">
+			 	followPending.pending_status = #{param.pendingStatus} and
+			</if>
+			
+			<if test="param.signTraceStatus != null">
+			 	followPending.sign_trace_status = #{param.signTraceStatus} and
+			</if>
+			
+			<if test="param.followStatus != null">
+			    <choose>
+			        <!-- 进行中 (0)：状态为0 且 (结束时间为空 OR 剩余天数>=0) -->
+			        <when test="param.followStatus == 0">
+			             (
+			                followRecord.follow_status = 0 
+			                AND (
+			                    followRecord.follow_end_time IS NULL 
+			                    OR 
+			                    <!-- 计算剩余天数：结束日期 >= 当前日期 -->
+			                    DATE(followRecord.follow_end_time) >= CURDATE()
+			                ) 
+			            ) and
+			        </when>
+			        
+			        <!-- 顺延 (1)：状态为1 OR (状态为0 且 已过期) -->
+			        <when test="param.followStatus == 1">
+			             (
+			                followRecord.follow_status = 1 
+			                OR 
+			                (
+			                    followRecord.follow_status = 0 
+			                    AND 
+			                    <!-- 已过期：结束日期 < 当前日期 -->
+			                    DATE(followRecord.follow_end_time) <![CDATA[ < ]]> CURDATE()
+			                )
+			            ) and
+			        </when>
+			        
+			        <!-- 已结束 (2)：直接匹配状态 -->
+			        <when test="param.followStatus == 2">
+			            followRecord.follow_status = 2 and
+			        </when>
+			    </choose>
+			</if>
+			
+			
+		</trim>
+		order by followPending.pending_time desc
+	</select>
+</mapper>

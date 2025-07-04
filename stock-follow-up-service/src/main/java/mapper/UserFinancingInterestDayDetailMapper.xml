@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.UserFinancingInterestDayDetailMapper">
+
+	<select id="getInterestGeneratedByUserId" resultType="java.math.BigDecimal">
+		SELECT
+		  IFNULL(SUM(interest_generated),0)  
+		FROM
+		  user_financing_interest_day_detail 
+		WHERE
+		  user_id = #{userId} 
+		  AND settlement = 0
+	</select>
+	
+</mapper>

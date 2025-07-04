@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.UserFollowUpRequestMapper">
+
+	<select id="managerList" resultType="entity.UserFollowUpRequest">
+		SELECT 
+		    s.*,t.tutor_name,u.level_id,
+  		  levelDef.level_val,
+		  levelDef.level_name
+		FROM
+		    user_follow_up_request s inner join tutor_info t on s.tutor_id=t.id
+		    inner join user_info u on u.id=s.user_id
+		    LEFT JOIN level_def levelDef ON u.level_id = levelDef.id
+		<trim prefix="where" suffixOverrides="and">
+			<if test="param.userId != null and param.userId > 0">
+				s.user_id=#{param.userId} and
+			</if>
+			<if test="param.tutor != null and param.tutor != ''">
+				t.tutor_name like '%${param.tutor}%' and
+			</if>
+			<if test="param.domainType != null">
+				t.domain_type=#{param.domainType} and
+			</if>
+			<if test="param.itemType != null">
+				s.item_type=#{param.itemType} and
+			</if>
+			<if test="param.status != null">
+				s.status=#{param.status} and
+			</if>
+			
+			<if test="param.timeStart != null">
+				s.request_time >= #{param.timeStart} and
+			</if>
+			<if test="param.timeEnd != null">
+				s.request_time &lt;= #{param.timeEnd} and
+			</if>
+			
+			<if test="param.operateTimeStart != null">
+				s.operateTime >= #{param.operateTimeStart} and
+			</if>
+			<if test="param.operateTimeEnd != null">
+				s.operateTime &lt;= #{param.operateTimeEnd} and
+			</if>
+		</trim>
+		order by s.id desc
+	</select>
+	
+	<!-- 跟投-用户跟投记录（审核跟投记录/跟投记录） -->
+	<select id="userFollowRequestOrRecord" resultType="vo.server.UserFollowRequestOrRecordVO">
+		SELECT
+		  followRequest.id AS followRequestId,
+		  followRequest.request_time,
+		  followRequest.amount,
+		  followRequest.item_type,
+		  followRecord.id AS followRecordId,
+		  followRecord.follow_order_sn,
+		  followRecord.follow_start_time,
+		  followRecord.return_follow_sum,
+		  followRecord.tutor_commission,
+		  followRecord.platform_commission,
+		  tutorInfo.id AS tutorId,
+		  tutorInfo.tutor_name 
+		FROM
+		  user_follow_up_request followRequest
+		  LEFT JOIN tutor_info tutorInfo ON followRequest.tutor_id = tutorInfo.id
+		  LEFT JOIN user_follow_up_record followRecord ON followRequest.id = followRecord.follow_request_id 
+		<trim prefix="where" suffixOverrides="and">
+			
+			<if test="param.userId != null and param.userId > 0">
+			 	followRequest.user_id = #{param.userId} and
+			</if>
+			
+			<if test="param.tutorId != null and param.tutorId > 0">
+			 	followRequest.tutor_id = #{param.tutorId} and
+			</if>
+			
+			<if test="param.searchType != null">
+				<!-- 待审核 -->
+				<if test="param.searchType==0">
+					followRequest.`status` = 0 and
+				</if>
+				<!-- 已驳回 -->
+				<if test="param.searchType==2">
+					followRequest.`status` = 2 and
+				</if>
+				<!-- 优投中 -->
+				<if test="param.searchType==1">
+					followRecord.follow_status = 0 and
+				</if>
+				<!-- 已结束 -->
+				<if test="param.searchType==3">
+					followRecord.follow_status = 2 and
+				</if>
+			</if>
+			
+		</trim>
+		order by followRequest.request_time desc
+	</select>
+
+</mapper>

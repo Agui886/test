@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.UserFollowUpRecordMapper">
+	<!-- 跟投管理-用户跟投记录 -->
+	<select id="managerList" resultType="entity.UserFollowUpRecord">
+		SELECT
+		  followRecord.*,
+		  tutorInfo.tutor_name AS tutorName,
+  		  tutorInfo.domain_type AS domainType,
+  		  userInfo.level_id AS levelId,
+  		  levelDef.level_val,
+		  levelDef.level_name
+		FROM
+		  user_follow_up_record followRecord
+		  LEFT JOIN tutor_info tutorInfo ON followRecord.tutor_id = tutorInfo.id
+  	      LEFT JOIN user_info userInfo ON followRecord.user_id = userInfo.id 
+  	      LEFT JOIN level_def levelDef ON userInfo.level_id = levelDef.id
+		<trim prefix="where" suffixOverrides="and">
+			
+			<if test="param.id != null and param.id > 0">
+			 	followRecord.id = #{param.id} and
+			</if>
+			
+			<if test="param.userId != null and param.userId > 0">
+			 	followRecord.user_id = #{param.userId} and
+			</if>
+			
+			<if test="param.tutorId != null and param.tutorId > 0">
+			 	followRecord.tutor_id = #{param.tutorId} and
+			</if>
+			
+			<if test="param.itemType != null">
+			 	followRecord.item_type = #{param.itemType} and
+			</if>
+			
+			<if test="param.followStatus != null">
+			 	followRecord.follow_status = #{param.followStatus} and
+			</if>
+			
+			<if test="param.domainType != null">
+			 	tutorInfo.domain_type = #{param.domainType} and
+			</if>
+			
+			<if test="param.startFollowStartTime != null">
+				followRecord.follow_start_time >= #{param.startFollowStartTime} and
+			</if>
+			<if test="param.endFollowStartTime != null">
+				followRecord.follow_start_time &lt;= #{param.endFollowStartTime} and
+			</if>
+			
+			<if test="param.startFollowClosingTime != null">
+				followRecord.followClosingTime >= #{param.startFollowClosingTime} and
+			</if>
+			<if test="param.endFollowClosingTime != null">
+				followRecord.followClosingTime &lt;= #{param.endFollowClosingTime} and
+			</if>
+			
+		</trim>
+		order by followRecord.follow_start_time desc
+	</select>
+</mapper>
